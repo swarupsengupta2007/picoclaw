@@ -197,10 +197,12 @@ func TestBuiltinListMCP_UsesRuntimeServerStatus(t *testing.T) {
 	if res.Outcome != OutcomeHandled {
 		t.Fatalf("/list mcp: outcome=%v, want=%v", res.Outcome, OutcomeHandled)
 	}
-	if !strings.Contains(reply, "- `filesystem`\n  Enabled: yes\n  Deferred: yes\n  Connected: no\n  Active tools: unavailable") {
+	if !strings.Contains(reply, "- `filesystem`\n  Enabled: yes\n  Deferred: yes\n  "+
+		"Connected: no\n  Active tools: unavailable") {
 		t.Fatalf("/list mcp reply=%q, want formatted filesystem block", reply)
 	}
-	if !strings.Contains(reply, "- `github`\n  Enabled: yes\n  Deferred: no\n  Connected: yes\n  Active tools: 3") {
+	if !strings.Contains(reply, "- `github`\n  Enabled: yes\n  Deferred: no\n  "+
+		"Connected: yes\n  Active tools: 3") {
 		t.Fatalf("/list mcp reply=%q, want formatted github block", reply)
 	}
 }
