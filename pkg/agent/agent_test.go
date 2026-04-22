@@ -1051,6 +1051,9 @@ func TestProcessMessage_MediaToolHandledSkipsFollowUpLLMAndFinalText(t *testing.
 	if last.Role != "assistant" || last.Content != "Requested output delivered via tool attachment." {
 		t.Fatalf("expected handled assistant summary in history, got %+v", last)
 	}
+	if len(last.Attachments) != 1 {
+		t.Fatalf("expected handled assistant summary attachments in history, got %+v", last.Attachments)
+	}
 }
 
 func TestProcessMessage_HandledToolProcessesQueuedSteeringBeforeReturning(t *testing.T) {
