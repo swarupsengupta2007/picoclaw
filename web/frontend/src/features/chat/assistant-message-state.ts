@@ -1,5 +1,8 @@
-import type { AssistantMessageKind, ChatMessage } from "../../store/chat.ts"
-import { parseToolCallsFromContent, parseToolCallsValue } from "./tool-calls.ts"
+import {
+  parseToolCallsFromContent,
+  parseToolCallsValue,
+} from "@/features/chat/tool-calls.ts"
+import type { AssistantMessageKind, ChatMessage } from "@/store/chat.ts"
 
 type AssistantToolCalls = ChatMessage["toolCalls"]
 type ExistingAssistantMessageState = Pick<ChatMessage, "kind" | "toolCalls">

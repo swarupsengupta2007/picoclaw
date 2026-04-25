@@ -4,7 +4,8 @@ function parseLegacyToolFeedbackContent(
   content: string,
 ): ChatToolCall[] | undefined {
   const trimmed = content.trim()
-  const match = /^🔧\s+`([^`]+)`(?:\n([\s\S]*))?$/.exec(trimmed)
+  const match =
+    /^🔧\s+`([^`\n\r]*?)(?:\.{1,2})?`[^\n\r]*(?:\r?\n([\s\S]*))?$/.exec(trimmed)
   if (!match) {
     return undefined
   }
