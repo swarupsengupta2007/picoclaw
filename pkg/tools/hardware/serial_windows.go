@@ -25,6 +25,17 @@ var (
 const (
 	purgeTxClear = 0x0004
 	purgeRxClear = 0x0008
+
+	dcbFlagBinary           = 0x00000001
+	dcbFlagParity           = 0x00000002
+	dcbFlagOutxCtsFlow      = 0x00000004
+	dcbFlagOutxDsrFlow      = 0x00000008
+	dcbFlagDtrControlMask   = 0x00000030
+	dcbFlagDsrSensitivity   = 0x00000040
+	dcbFlagTXContinueOnXoff = 0x00000080
+	dcbFlagOutX             = 0x00000100
+	dcbFlagInX              = 0x00000200
+	dcbFlagRtsControlMask   = 0x00003000
 )
 
 type dcb struct {
@@ -113,6 +124,8 @@ func serialRead(ctx context.Context, cfg serialConfig, length int, timeout time.
 
 	buf := make([]byte, length)
 	var read uint32
+	// Synchronous serial I/O on Windows cannot be interrupted once the syscall starts.
+	// COMMTIMEOUTS bounds how long turn cancellation may take to surface.
 	if err := windows.ReadFile(handle, buf, &read, nil); err != nil {
 		return nil, err
 	}
@@ -134,11 +147,15 @@ func serialWrite(ctx context.Context, cfg serialConfig, data []byte, timeout tim
 		return 0, err
 	}
 
-	var written uint32
-	if err := windows.WriteFile(handle, data, &written, nil); err != nil {
-		return int(written), err
-	}
-	return int(written), nil
+	return serialWriteAll(ctx, data, timeout, time.Now, func(chunk []byte) (int, error) {
+		var written uint32
+		// Like ReadFile above, this synchronous WriteFile call relies on COMMTIMEOUTS
+		// rather than context preemption once the syscall is in flight.
+		if err := windows.WriteFile(handle, chunk, &written, nil); err != nil {
+			return int(written), err
+		}
+		return int(written), nil
+	})
 }
 
 func openAndConfigureWindowsSerial(cfg serialConfig, timeout time.Duration) (windows.Handle, error) {
@@ -171,18 +188,19 @@ func configureWindowsSerialPort(handle windows.Handle, cfg serialConfig, timeout
 
 	state.BaudRate = uint32(cfg.Baud)
 	state.ByteSize = byte(cfg.DataBits)
-	state.Flags |= 0x00000001 // fBinary
+	state.Flags = sanitizeWindowsSerialFlags(state.Flags)
+	state.Flags |= dcbFlagBinary
 
 	switch cfg.Parity {
 	case "even":
 		state.Parity = 2
-		state.Flags |= 0x00000002 // fParity
+		state.Flags |= dcbFlagParity
 	case "odd":
 		state.Parity = 1
-		state.Flags |= 0x00000002 // fParity
+		state.Flags |= dcbFlagParity
 	default:
 		state.Parity = 0
-		state.Flags &^= 0x00000002
+		state.Flags &^= dcbFlagParity
 	}
 
 	switch cfg.StopBits {
@@ -215,4 +233,16 @@ func configureWindowsSerialPort(handle windows.Handle, cfg serialConfig, timeout
 
 	procPurgeComm.Call(uintptr(handle), uintptr(purgeRxClear|purgeTxClear))
 	return nil
+}
+
+func sanitizeWindowsSerialFlags(flags uint32) uint32 {
+	flags &^= dcbFlagOutxCtsFlow |
+		dcbFlagOutxDsrFlow |
+		dcbFlagDtrControlMask |
+		dcbFlagDsrSensitivity |
+		dcbFlagTXContinueOnXoff |
+		dcbFlagOutX |
+		dcbFlagInX |
+		dcbFlagRtsControlMask
+	return flags
 }

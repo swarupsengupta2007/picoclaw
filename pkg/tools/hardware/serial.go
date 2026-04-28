@@ -413,3 +413,37 @@ func serialContextErr(ctx context.Context) error {
 		return nil
 	}
 }
+
+func serialWriteAll(
+	ctx context.Context,
+	data []byte,
+	timeout time.Duration,
+	now func() time.Time,
+	write func([]byte) (int, error),
+) (int, error) {
+	if err := serialContextErr(ctx); err != nil {
+		return 0, err
+	}
+
+	total := 0
+	deadline := now().Add(timeout)
+	for total < len(data) {
+		if err := serialContextErr(ctx); err != nil {
+			return total, err
+		}
+		if deadline.Sub(now()) <= 0 {
+			return total, fmt.Errorf("timeout while writing serial data")
+		}
+
+		n, err := write(data[total:])
+		total += n
+		if err != nil {
+			return total, err
+		}
+		if n == 0 {
+			continue
+		}
+	}
+
+	return total, nil
+}
